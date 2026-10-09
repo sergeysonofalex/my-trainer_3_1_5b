@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Тренажёр: Идея для проекта (часть 1)</title>
+<style>
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    font-family: Verdana, Geneva, Arial, sans-serif;
+    background:#f2f8ff;
+    color:#0f2740;
+    padding:10px 14px 30px;
+    -webkit-user-select:none;
+    user-select:none;
+    -webkit-tap-highlight-color:transparent;
+    font-size:16px;
+  }
+
+  h1{ font-size:26px; line-height:1.2; margin:0 0 4px; color:#0b3d70; }
+  .subtitle{ font-size:15px; color:#3b6ea5; font-weight:bold; }
+
+  .task-nav{ display:flex; gap:8px; flex-wrap:wrap; margin:12px 0 8px; }
+  .task-nav button{
+    width:48px; height:48px; font-size:20px; font-weight:bold;
+    font-family:inherit;
+    border-radius:12px; border:3px solid #1f6feb; background:#fff; color:#1f6feb;
+    cursor:pointer; transition:transform .1s;
+  }
+  .task-nav button:active{ transform:scale(.94); }
+  .task-nav button.active{ background:#1f6feb; color:#fff; }
+  .task-nav button.done{ border-color:#16a34a; background:#e9fbef; color:#16a34a; }
+  .task-nav button.done.active{ background:#16a34a; color:#fff; }
+
+  .score-bar{ font-size:17px; font-weight:bold; color:#0b3d70; margin:4px 0 10px; }
+
+  .feedback{ display:none; font-size:18px; font-weight:bold; padding:10px 16px; border-radius:12px; margin-bottom:10px; }
+  .feedback.ok{ display:block; background:#e9fbef; border:4px solid #16a34a; color:#15803d; animation:pop .35s ease; }
+  .feedback.err{ display:block; background:#fff7e6; border:4px solid #f59e0b; color:#b45309; }
+  @keyframes pop{ 0%{transform:scale(.92);} 60%{transform:scale(1.03);} 100%{transform:scale(1);} }
+
+  .panel{ background:#fff; border:3px solid #9ecbff; border-radius:16px; padding:14px 16px 18px; }
+  .task-title{ font-size:24px; font-weight:bold; color:#0b3d70; margin-bottom:6px; }
+  .instruction{ font-size:17px; line-height:1.35; color:#1c4b7d; margin-bottom:14px; }
+
+  .pool{
+    display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+    padding:10px; margin-bottom:14px;
+    background:#eef6ff; border:3px dashed #7fb3e8; border-radius:14px;
+    min-height:70px;
+  }
+  .pool:empty::before{ content:'Все карточки разложены 👏'; font-size:15px; color:#7a9dc0; }
+
+  .chip{
+    display:inline-block;
+    font-size:16px; font-weight:bold; line-height:1.2;
+    padding:8px 14px; border-radius:10px;
+    background:#fff8d6; border:3px solid #f0b429; color:#5a3d00;
+    cursor:grab; touch-action:none;
+    box-shadow:0 3px 0 #e0a800;
+    transition:transform .1s, background .15s, border-color .15s;
+  }
+  .chip:active{ transform:translateY(2px); }
+  .chip.selected{ border-color:#1f6feb; background:#dceeff; box-shadow:0 0 0 4px rgba(31,111,235,.25); }
+  .chip.locked{ cursor:default; box-shadow:none; }
+  .chip.correct{ background:#e9fbef; border-color:#16a34a; color:#15803d; box-shadow:none; }
+  .chip.wrong{ background:#fdecec; border-color:#dc2626; color:#b91c1c; box-shadow:none; }
+  .ghost{ position:fixed; pointer-events:none; z-index:9999; opacity:.9; transform:scale(1.04); }
+
+  .dropzone{
+    border:3px dashed #9ecbff; border-radius:10px; background:#f2f8ff;
+    min-height:52px; padding:6px;
+    display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap;
+    transition:background .15s, border-color .15s;
+  }
+  .dropzone .ph{ font-size:13px; color:#7a9dc0; text-align:center; }
+  .dropzone.filled .ph{ display:none; }
+  .dropzone.over{ background:#dceeff; border-color:#1f6feb; }
+  .dropzone.correct{ border-style:solid; border-color:#16a34a; background:#e9fbef; }
+  .dropzone.wrong{ border-style:solid; border-color:#dc2626; background:#fdecec; }
+  .dropzone.multi{ flex-direction:column; align-items:stretch; justify-content:flex-start; min-height:170px; }
+
+  .match-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:12px; }
+  .match-card{ border:3px solid #cfe3fb; border-radius:12px; padding:10px; background:#fbfdff; display:flex; flex-direction:column; gap:8px; }
+  .match-desc{ font-size:15px; line-height:1.3; }
+
+  .pair-list{ display:flex; flex-direction:column; gap:10px; }
+  .pair-row{ display:flex; align-items:center; gap:12px; padding:8px 12px; border:3px solid #cfe3fb; border-radius:12px; background:#fbfdff; flex-wrap:wrap; }
+  .pair-row .pair-text{ flex:1 1 300px; font-size:16px; font-weight:bold; }
+  .pair-row .dropzone{ flex:1 1 220px; min-height:52px; }
+
+  .columns{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media(max-width:760px){ .columns{ grid-template-columns:1fr; } }
+  .column{ border:3px solid #7fb3e8; border-radius:14px; background:#fbfdff; padding:10px; }
+  .column h3{ font-size:17px; margin:0 0 8px; text-align:center; color:#0b3d70; }
+  .column.hintA{ border-color:#f0b429; }
+  .column.hintB{ border-color:#7fb3e8; }
+
+  .slots{ display:flex; flex-direction:column; gap:10px; }
+  .slot-row{ display:flex; align-items:center; gap:10px; }
+  .slot-num{ flex:0 0 auto; width:42px; height:42px; border-radius:50%; background:#1f6feb; color:#fff; font-size:20px; font-weight:bold; display:flex; align-items:center; justify-content:center; }
+  .slot-row .dropzone{ flex:1; justify-content:flex-start; }
+
+  /* ---------- ЗАДАНИЕ 6 ---------- */
+  .screen{
+    background:#fff; border:4px solid #94a3b8; border-radius:12px;
+    padding:14px 18px; margin-bottom:14px;
+    transition:background .3s, border-color .3s;
+  }
+  .screen.flash{ animation: flashScreen .6s ease; }
+  @keyframes flashScreen{
+    0%   { background:#fffbe6; border-color:#f0b429; transform:scale(1.005); }
+    100% { background:#fff;    border-color:#94a3b8; transform:scale(1); }
+  }
+  .scr-label{ font-size:14px; color:#64748b; font-weight:bold; display:block; margin-bottom:8px; }
+  .scr-text{
+    font-family:"Courier New", monospace; font-size:30px; font-weight:bold;
+    letter-spacing:2px; min-height:44px; word-break:break-word;
+    line-height:1.2;
+  }
+  .scr-text .cursor{
+    color:#1f6feb; font-weight:bold;
+    animation: blink 1s steps(1) infinite;
+  }
+  @keyframes blink{ 50%{ opacity:0; } }
+
+  .t6-status{
+    margin-top:12px; font-size:14px; font-weight:bold;
+    min-height:28px; display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+  }
+  .t6-ok{
+    color:#15803d; background:#e9fbef; border:2px solid #16a34a;
+    padding:5px 12px; border-radius:8px; display:inline-block;
+    animation: pop .4s ease;
+  }
+  .t6-note{
+    color:#b45309; background:#fff7e6; border:2px solid #f59e0b;
+    padding:5px 12px; border-radius:8px; display:inline-block;
+  }
+  .t6-lang{
+    color:#1f6feb; background:#dceeff; border:2px solid #1f6feb;
+    padding:5px 12px; border-radius:8px; display:inline-block;
+    animation: pop .4s ease;
+  }
+  .t6-key{
+    color:#5a3d00; background:#fff8d6; border:2px solid #f0b429;
+    padding:5px 12px; border-radius:8px; display:inline-block;
+    animation: pop .4s ease;
+  }
+
+
+  .t6-input{
+    width:100%; box-sizing:border-box; font-family:"Courier New", monospace; font-size:30px; font-weight:bold;
+    letter-spacing:2px; padding:8px 10px; border:3px solid #1f6feb; border-radius:10px; background:#fff; color:#0f172a;
+    caret-color:#1f6feb; outline:none;
+  }
+  .t6-input:read-only{ border-color:#16a34a; background:#f4fdf7; }
+  .t6-goals{ display:flex; flex-direction:column; gap:6px; margin-bottom:12px; }
+  .t6-chk{ padding:8px 12px; border:2px solid #cbd5e1; border-radius:8px; background:#f8fafc; font-weight:bold; color:#475569; }
+  .t6-chk::before{ content:'⬜ '; }
+  .t6-chk.ok{ border-color:#16a34a; background:#e9fbef; color:#15803d; }
+  .t6-chk.ok::before{ content:'✅ '; }
+  .t6-pad{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
+  .t6-padbtn{ font:inherit; font-size:16px; font-weight:bold; padding:10px 14px; border:3px solid #94a3b8; border-radius:10px; background:#fff; cursor:pointer; }
+  .t6-padbtn:active{ transform:scale(.95); }
+  .t6-padbtn.on{ background:#1f6feb; color:#fff; border-color:#1f6feb; }
+  .t6-langbtn.rus{ background:#dceeff; border-color:#1f6feb; color:#1f6feb; }
+
+  .q-block{
+    border:3px solid #cfe3fb; border-radius:12px; padding:10px 12px;
+    margin-bottom:12px; background:#fbfdff;
+    transition:border-color .3s, background .3s;
+  }
+  .q-block.done{ border-color:#16a34a; background:#f4fdf7; }
+  .q-block.done .q-text::after{ content:' ✅'; color:#16a34a; }
+  .q-text{ font-size:17px; font-weight:bold; margin-bottom:10px; color:#0b3d70; }
+  .options{ display:flex; flex-wrap:wrap; gap:8px; }
+  .opt{
+    font-family:inherit; font-size:16px; font-weight:bold;
+    padding:9px 14px; border-radius:10px; border:3px solid #9ecbff;
+    background:#fff; color:#0f2740; cursor:pointer;
+    transition:transform .1s, background .15s, border-color .15s;
+  }
+  .opt:active{ transform:scale(.97); }
+  .opt.correct{ border-color:#16a34a; background:#e9fbef; color:#15803d; cursor:default; }
+  .opt.wrong{ border-color:#dc2626; background:#fdecec; color:#b91c1c; animation:shake .35s; }
+  .opt.done{ cursor:default; }
+  @keyframes shake{
+    0%,100%{ transform:translateX(0); }
+    25%{ transform:translateX(-6px); }
+    75%{ transform:translateX(6px); }
+  }
+
+  .controls{ display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; }
+  .controls button{
+    font-family:inherit; font-size:18px; font-weight:bold;
+    padding:10px 20px; border-radius:12px; border:none; cursor:pointer; color:#fff;
+    box-shadow:0 4px 0 rgba(0,0,0,.15);
+    transition:transform .1s;
+  }
+  .controls button:active{ transform:translateY(3px); box-shadow:none; }
+  #btnCheck{ background:#16a34a; }
+  #btnReset{ background:#f59e0b; }
+  #btnNext{ background:#1f6feb; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <h1>💡 Идея для проекта. Часть 1: планирование</h1>
+  <div class="subtitle">Тренажёр по цифровой грамотности · 3 класс · правила набора текста</div>
+</header>
+
+<nav class="task-nav" id="taskNav"></nav>
+
+<div class="score-bar" id="score">⭐ Выполнено заданий: 0 из 6</div>
+
+<div class="feedback" id="feedback"></div>
+
+<main id="taskArea"></main>
+
+<div class="controls">
+  <button id="btnCheck">✅ Проверить</button>
+  <button id="btnReset">🔄 Сбросить</button>
+  <button id="btnNext">➡️ Следующее задание</button>
+</div>
+
+<script>
+/* =========================================================
+   УТИЛИТЫ
+   ========================================================= */
+function shuffle(arr){
+  for(let i = arr.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+function el(tag, cls, html){
+  const e = document.createElement(tag);
+  if(cls) e.className = cls;
+  if(html !== undefined) e.innerHTML = html;
+  return e;
+}
+
+/* =========================================================
+   СОСТОЯНИЕ
+   ========================================================= */
+const state = {
+  current: 1,
+  completed: new Set(),
+  selected: null
+};
+let drag = null;
+let highlighted = null;
+
+/* =========================================================
+   ПЕРЕТАСКИВАНИЕ
+   ========================================================= */
+function makeChip(text, dataset){
+  const c = el('div', 'chip');
+  c.textContent = text;
+  Object.assign(c.dataset, dataset);
+  c.addEventListener('pointerdown', onChipPointerDown);
+  return c;
+}
+
+function onChipPointerDown(e){
+  const chip = e.currentTarget;
+  if(chip.classList.contains('locked')) return;
+  e.preventDefault();
+  e.stopPropagation();
+
+  const rect = chip.getBoundingClientRect();
+  const ghost = chip.cloneNode(true);
+  ghost.classList.add('ghost');
+  ghost.style.width  = rect.width + 'px';
+  ghost.style.height = rect.height + 'px';
+  ghost.style.left   = rect.left + 'px';
+  ghost.style.top    = rect.top + 'px';
+  document.body.appendChild(ghost);
+
+  drag = {
+    chip: chip, ghost: ghost,
+    dx: e.clientX - rect.left, dy: e.clientY - rect.top,
+    sx: e.clientX, sy: e.clientY, moved: false
+  };
+}
+
+document.addEventListener('pointermove', function(e){
+  if(!drag) return;
+  if(!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 6){
+    drag.moved = true;
+    drag.chip.style.opacity = '.35';
+  }
+  if(!drag.moved) return;
+  drag.ghost.style.left = (e.clientX - drag.dx) + 'px';
+  drag.ghost.style.top  = (e.clientY - drag.dy) + 'px';
+  highlightUnder(e.clientX, e.clientY);
+}, {passive:true});
+
+document.addEventListener('pointerup', function(e){
+  if(!drag) return;
+  const d = drag;
+  drag = null;
+  d.ghost.remove();
+  d.chip.style.opacity = '';
+  clearHighlight();
+
+  if(d.moved){
+    const target = document.elementFromPoint(e.clientX, e.clientY);
+    const zone = target ? target.closest('.dropzone') : null;
+    if(zone) placeChip(d.chip, zone);
+    else returnToPool(d.chip);
+  }else{
+    tapChip(d.chip);
+  }
+});
+
+document.addEventListener('pointercancel', function(){
+  if(!drag) return;
+  drag.ghost.remove();
+  drag.chip.style.opacity = '';
+  drag = null;
+  clearHighlight();
+});
+
+function highlightUnder(x, y){
+  const node = document.elementFromPoint(x, y);
+  const zone = node ? node.closest('.dropzone') : null;
+  if(zone !== highlighted){
+    if(highlighted) highlighted.classList.remove('over');
+    highlighted = zone;
+    if(highlighted) highlighted.classList.add('over');
+  }
+}
+function clearHighlight(){
+  if(highlighted){ highlighted.classList.remove('over'); highlighted = null; }
+}
+
+function tapChip(chip){
+  if(chip.classList.contains('locked')) return;
+  if(chip.closest('.dropzone')){ returnToPool(chip); clearSelection(); return; }
+  if(state.selected === chip){ clearSelection(); return; }
+  clearSelection();
+  state.selected = chip;
+  chip.classList.add('selected');
+}
+function clearSelection(){
+  if(state.selected) state.selected.classList.remove('selected');
+  state.selected = null;
+}
+
+function makeZone(zone){
+  zone.classList.add('dropzone');
+  zone.addEventListener('pointerdown', function(e){
+    if(e.target.closest('.chip')) return;
+    if(state.selected){ placeChip(state.selected, zone); }
+  });
+  return zone;
+}
+
+function placeChip(chip, zone){
+  if(!chip || chip.classList.contains('locked')) return;
+  if(!zone.classList.contains('multi')){
+    const existing = zone.querySelector('.chip');
+    if(existing && existing !== chip){
+      if(existing.classList.contains('locked')) return;
+      returnToPool(existing);
+    }
+  }
+  zone.appendChild(chip);
+  clearSelection();
+  refreshZones();
+  clearFeedback();
+}
+function returnToPool(chip){
+  const pool = document.querySelector('.pool');
+  if(pool) pool.appendChild(chip);
+  refreshZones();
+}
+function refreshZones(){
+  document.querySelectorAll('.dropzone').forEach(function(z){
+    z.classList.toggle('filled', !!z.querySelector('.chip'));
+  });
+}
+
+/* =========================================================
+   ОБРАТНАЯ СВЯЗЬ / СЧЁТ
+   ========================================================= */
+function setFeedback(type, text){
+  const f = document.getElementById('feedback');
+  f.className = 'feedback ' + type;
+  f.textContent = text;
+  f.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+function clearFeedback(){
+  const f = document.getElementById('feedback');
+  f.className = 'feedback';
+  f.textContent = '';
+}
+function updateScore(){
+  document.getElementById('score').textContent =
+    '⭐ Выполнено заданий: ' + state.completed.size + ' из 6';
+}
+function updateNav(){
+  document.querySelectorAll('.task-nav button').forEach(function(b){
+    const n = Number(b.dataset.n);
+    b.classList.toggle('active', n === state.current);
+    b.classList.toggle('done', state.completed.has(n));
+  });
+}
+
+/* =========================================================
+   ДАННЫЕ ЗАДАНИЙ
+   ========================================================= */
+const T1_KEYS = [
+  {key:'shift',     name:'Shift (Шифт)',         desc:'⬆️ Клавиша с длинной стрелкой вверх. Таких клавиш на клавиатуре две — слева и справа.'},
+  {key:'caps',      name:'Caps Lock (Капс Лок)', desc:'🔒 Клавиша с лампочкой-индикатором. Включает режим ВСЕХ БОЛЬШИХ БУКВ.'},
+  {key:'backspace', name:'Backspace (Бэкспейс)', desc:'⬅️ Клавиша со стрелкой влево в верхнем ряду. Стирает символ СЛЕВА от курсора.'},
+  {key:'delete',    name:'Delete (Делит)',       desc:'🗑️ Клавиша с надписью Del. Стирает символ СПРАВА от курсора.'},
+  {key:'enter',     name:'Enter (Энтер)',        desc:'↵ Самая большая клавиша справа. Переносит текст на новую строку.'},
+  {key:'space',     name:'Пробел (Space)',       desc:'▭ Самая длинная клавиша внизу. Делает отступ между словами.'}
+];
+
+const T2_STAGES = [
+  {key:'idea', name:'1. Идея',       def:'Придумываем, о чём будет наш проект.'},
+  {key:'goal', name:'2. Цель',       def:'Решаем, зачем и для кого мы делаем проект.'},
+  {key:'plan', name:'3. План',       def:'Записываем шаги: что и в каком порядке будем делать.'},
+  {key:'do',   name:'4. Выполнение', def:'Делаем проект: набираем текст, добавляем картинки.'},
+  {key:'show', name:'5. Защита',     def:'Показываем работу и рассказываем о ней одноклассникам.'}
+];
+
+const T3_ITEMS = [
+  {text:'Задать вопрос: «Зачем мы это делаем?»',      col:'A'},
+  {text:'Выбрать тему про животных',                  col:'A'},
+  {text:'Составить список шагов',                     col:'A'},
+  {text:'Набрать текст заглавными буквами',           col:'B'},
+  {text:'Вставить картинку в слайд',                  col:'B'},
+  {text:'Исправить опечатку клавишей Backspace (Бэкспейс)', col:'B'}
+];
+
+const T4_PAIRS = [
+  {key:'shift',     task:'Ввести одну большую букву',        name:'Shift (Шифт)'},
+  {key:'caps',      task:'Включить режим ВСЕХ БОЛЬШИХ БУКВ', name:'Caps Lock (Капс Лок)'},
+  {key:'backspace', task:'Стереть ошибку СЛЕВА от курсора',  name:'Backspace (Бэкспейс)'},
+  {key:'enter',     task:'Перейти на новую строку',          name:'Enter (Энтер)'},
+  {key:'space',     task:'Сделать отступ между словами',     name:'Пробел (Space)'}
+];
+
+const T5_STEPS = [
+  {order:1, text:'Выбрать интересную тему (Идея)'},
+  {order:2, text:'Определить, для чего мы делаем проект (Цель)'},
+  {order:3, text:'Написать список необходимых действий (План)'},
+  {order:4, text:'Набрать текст и вставить фото на ПК (Выполнение)'},
+  {order:5, text:'Рассказать одноклассникам о своей работе (Защита)'}
+];
+
+/* =========================================================
+   ЗАДАНИЕ 1
+   ========================================================= */
+function buildTask1(area){
+  const panel = el('div','panel');
+  panel.appendChild(el('div','task-title','Задание 1. Узнай клавишу! 🔑'));
+  panel.appendChild(el('div','instruction',
+    'Перетащи название клавиши к её описанию.<br>Или нажми на название, а потом нажми на нужную карточку.'));
+
+  const pool = el('div','pool');
+  shuffle(T1_KEYS.slice()).forEach(function(item){
+    pool.appendChild(makeChip(item.name, {key:item.key}));
+  });
+  panel.appendChild(pool);
+
+  const grid = el('div','match-grid');
+  T1_KEYS.forEach(function(item){
+    const card = el('div','match-card');
+    card.appendChild(el('div','match-desc', item.desc));
+    const zone = el('div','', '<span class="ph">перетащи сюда название клавиши</span>');
+    zone.dataset.answer = item.key;
+    makeZone(zone);
+    card.appendChild(zone);
+    grid.appendChild(card);
+  });
+  panel.appendChild(grid);
+  area.appendChild(panel);
+}
+
+/* =========================================================
+   ЗАДАНИЕ 2
+   ========================================================= */
+function buildTask2(area){
+  const panel = el('div','panel');
+  panel.appendChild(el('div','task-title','Задание 2. Этапы проекта 🪜'));
+  panel.appendChild(el('div','instruction',
+    'Соедини каждый этап проекта с его объяснением.<br>Перетащи карточку или нажми на неё, а потом на нужное поле.'));
+
+  const pool = el('div','pool');
+  shuffle(T2_STAGES.slice()).forEach(function(item){
+    pool.appendChild(makeChip(item.name, {key:item.key}));
+  });
+  panel.appendChild(pool);
+
+  const grid = el('div','match-grid');
+  T2_STAGES.forEach(function(item){
+    const card = el('div','match-card');
+    card.appendChild(el('div','match-desc', item.def));
+    const zone = el('div','', '<span class="ph">перетащи сюда этап</span>');
+    zone.dataset.answer = item.key;
+    makeZone(zone);
+    card.appendChild(zone);
+    grid.appendChild(card);
+  });
+  panel.appendChild(grid);
+  area.appendChild(panel);
+}
+
+/* =========================================================
+   ЗАДАНИЕ 3
+   ========================================================= */
+function buildTask3(area){
+  const panel = el('div','panel');
+  panel.appendChild(el('div','task-title','Задание 3. Идея или оформление? 🤔'));
+  panel.appendChild(el('div','instruction',
+    'Распредели карточки по двум колонкам: что мы делаем, когда придумываем идею, а что — когда работаем на компьютере.'));
+
+  const pool = el('div','pool');
+  shuffle(T3_ITEMS.slice()).forEach(function(item){
+    pool.appendChild(makeChip(item.text, {col:item.col}));
+  });
+  panel.appendChild(pool);
+
+  const cols = el('div','columns');
+  const colA = el('div','column multi hintA', '<h3>💡 Придумываем идею и цель</h3>');
+  colA.dataset.col = 'A';
+  makeZone(colA);
+  const colB = el('div','column multi hintB', '<h3>💻 Набираем и оформляем на ПК</h3>');
+  colB.dataset.col = 'B';
+  makeZone(colB);
+  cols.appendChild(colA);
+  cols.appendChild(colB);
+  panel.appendChild(cols);
+  area.appendChild(panel);
+}
+
+/* =========================================================
+   ЗАДАНИЕ 4
+   ========================================================= */
+function buildTask4(area){
+  const panel = el('div','panel');
+  panel.appendChild(el('div','task-title','Задание 4. Помощники клавиатуры ⌨️'));
+  panel.appendChild(el('div','instruction','Прочитай задачу слева и поставь справа нужную клавишу.'));
+
+  const pool = el('div','pool');
+  shuffle(T4_PAIRS.slice()).forEach(function(item){
+    pool.appendChild(makeChip(item.name, {key:item.key}));
+  });
+  panel.appendChild(pool);
+
+  const list = el('div','pair-list');
+  T4_PAIRS.forEach(function(item){
+    const row = el('div','pair-row');
+    row.appendChild(el('div','pair-text', item.task));
+    const zone = el('div','', '<span class="ph">нужная клавиша</span>');
+    zone.dataset.answer = item.key;
+    makeZone(zone);
+    row.appendChild(zone);
+    list.appendChild(row);
+  });
+  panel.appendChild(list);
+  area.appendChild(panel);
+}
+
+/* =========================================================
+   ЗАДАНИЕ 5
+   ========================================================= */
+function buildTask5(area){
+  const panel = el('div','panel');
+  panel.appendChild(el('div','task-title','Задание 5. Собери план проекта по порядку 🧩'));
+  panel.appendChild(el('div','instruction','Расставь шаги проекта в правильном порядке: от 1 до 5.'));
+
+  const pool = el('div','pool');
+  shuffle(T5_STEPS.slice()).forEach(function(item){
+    pool.appendChild(makeChip(item.text, {order:item.order}));
+  });
+  panel.appendChild(pool);
+
+  const slots = el('div','slots');
+  for(let i = 1; i <= 5; i++){
+    const row = el('div','slot-row');
+    row.appendChild(el('div','slot-num', String(i)));
+    const zone = el('div','', '<span class="ph">положи сюда шаг №' + i + '</span>');
+    zone.dataset.pos = String(i);
+    makeZone(zone);
+    row.appendChild(zone);
+    slots.appendChild(row);
+  }
+  panel.appendChild(slots);
+  area.appendChild(panel);
+}
+
+/* =========================================================
+   ЗАДАНИЕ 6 — ЖИВОЙ РЕДАКТОР (ПОЛНОСТЬЮ ПЕРЕПИСАН)
+   ========================================================= */
+let t6state = null;
+const T6_TARGET = 'Мой проект ПРИРОДА';
+
+function t6ResetState(){
+  /* lang — раскладка, определённая по реально нажатым буквам */
+  t6state = { lang:'ENG', shift:false, done:false };
+}
+
+function t6Input(){ return document.getElementById('t6Input'); }
+
+/* Определяем раскладку по символу, который выдала клавиатура */
+function t6Detect(ch){
+  if(!ch) return;
+  if(/[а-яё]/i.test(ch)) t6state.lang = 'RUS';
+  else if(/[a-z]/i.test(ch)) t6state.lang = 'ENG';
+}
+
+function t6Check(){
+  const inp = t6Input();
+  if(!inp) return;
+  const v = inp.value;
+  const s1 = v.charAt(0) === 'М';
+  const s2 = v.indexOf('рр') === -1 && v.indexOf('проект') !== -1;
+  const s3 = t6state.lang === 'RUS';
+  const set = function(id, ok){
+    const e = document.getElementById(id);
+    if(e){ e.className = 't6-chk' + (ok ? ' ok' : ''); }
+  };
+  set('t6c1', s1); set('t6c2', s2); set('t6c3', s3);
+  const lang = document.getElementById('t6Lang');
+  if(lang){ lang.textContent = '🌐 ' + (s3 ? 'РУС' : 'ENG'); lang.className = 't6-langbtn ' + (s3 ? 'rus' : ''); }
+  const sh = document.getElementById('t6Shift');
+  if(sh){ sh.classList.toggle('on', t6state.shift); }
+
+  if(v === T6_TARGET && s3 && !t6state.done){
+    t6state.done = true;
+    inp.readOnly = true;
+    if(!state.completed.has(6)){ state.completed.add(6); updateScore(); updateNav(); }
+    setFeedback('ok', '🎉 Отлично! Ты сам исправил название проекта: «' + T6_TARGET + '»');
+  }
+}
+
+function t6Flash(){
+  const sc = document.querySelector('.screen');
+  if(!sc) return;
+  sc.classList.remove('flash'); void sc.offsetWidth; sc.classList.add('flash');
+}
+
+function t6Toast(text){
+  const st = document.getElementById('t6Status');
+  if(!st) return;
+  st.innerHTML = '';
+  const k = document.createElement('span');
+  k.className = 't6-key'; k.textContent = text;
+  st.appendChild(k);
+}
+
+function t6Insert(ch){
+  const inp = t6Input();
+  if(!inp || t6state.done) return;
+  t6state.lang = 'RUS';
+  const a = inp.selectionStart, b = inp.selectionEnd;
+  inp.value = inp.value.slice(0, a) + ch + inp.value.slice(b);
+  inp.setSelectionRange(a + ch.length, a + ch.length);
+  t6Toast('⌨️ Напечатано: ' + ch);
+  t6Flash(); t6Check();
+}
+
+function t6Backspace(){
+  const inp = t6Input();
+  if(!inp || t6state.done) return;
+  let a = inp.selectionStart, b = inp.selectionEnd;
+  if(a === b){ if(a === 0) return; a--; }
+  inp.value = inp.value.slice(0, a) + inp.value.slice(b);
+  inp.setSelectionRange(a, a);
+  t6Toast('⌨️ Backspace: стёрто слева от курсора');
+  t6Flash(); t6Check();
+}
+
+function t6OnKeyDown(e){
+  if(t6state.done){ e.preventDefault(); return; }
+  if((e.key === 'Shift' && (e.altKey || e.ctrlKey)) || (e.key === 'Alt' && e.shiftKey) || (e.key === 'Control' && e.shiftKey)){
+    t6Toast('🌐 Alt + Shift нажаты. Напечатай букву — и я увижу, какая раскладка включилась.');
+    return;
+  }
+  if(e.ctrlKey || e.metaKey) return;
+  /* Реальная раскладка — по символу нажатой клавиши */
+  if(e.key && e.key.length === 1 && /[a-zа-яё]/i.test(e.key)){
+    t6Detect(e.key);
+    setTimeout(function(){ t6Check(); t6Flash(); }, 0);
+  }
+  if(e.key === 'Backspace') t6Toast('⌨️ Backspace: стирает слева от курсора');
+}
+
+function t6OnInput(e){
+  if(t6state.done) return;
+  const d = e && e.data;
+  if(d) t6Detect(d.charAt(d.length - 1));
+  t6Check();
+}
+
+function t6BuildScreen(){
+  const panel = el('div','panel');
+  panel.appendChild(el('div','task-title','Задание 6. Редактируем название проекта ✏️'));
+  panel.appendChild(el('div','instruction',
+    'Помоги Пете исправить название проекта. Редактируй текст настоящей клавиатурой: нажми на строку, поставь курсор и жми клавиши!'));
+
+  const screen = el('div','screen');
+  screen.appendChild(el('div','scr-label','🖥️ Экран компьютера (нажми на текст и редактируй):'));
+
+  const inp = document.createElement('input');
+  inp.type = 'text'; inp.id = 't6Input'; inp.className = 't6-input';
+  inp.value = 'мой прроект ПРИРОДА';
+  inp.autocomplete = 'off'; inp.spellcheck = false;
+  inp.addEventListener('keydown', t6OnKeyDown);
+  inp.addEventListener('input', t6OnInput);
+  ['paste','drop','cut'].forEach(function(n){ inp.addEventListener(n, function(e){ e.preventDefault(); }); });
+  screen.appendChild(inp);
+
+  const status = el('div','t6-status'); status.id = 't6Status';
+  screen.appendChild(status);
+  panel.appendChild(screen);
+
+  /* Цели */
+  const goals = el('div','t6-goals');
+  goals.appendChild(el('div','t6-chk','')); goals.lastChild.id = 't6c1';
+  goals.lastChild.textContent = 'Первая буква — заглавная (Shift + м)';
+  const g2 = el('div','t6-chk',''); g2.id = 't6c2'; g2.textContent = 'Убрать лишнюю «р» (Backspace)';
+  const g3 = el('div','t6-chk',''); g3.id = 't6c3'; g3.textContent = 'Включить русскую раскладку (Alt + Shift) — определится по напечатанной букве';
+  goals.appendChild(g2); goals.appendChild(g3);
+  panel.appendChild(goals);
+
+  /* Экранные кнопки (для планшета/телефона) */
+  const pad = el('div','t6-pad');
+  const mk = function(txt, id, fn){
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 't6-padbtn'; b.textContent = txt;
+    if(id) b.id = id;
+    b.addEventListener('mousedown', function(e){ e.preventDefault(); });
+    b.addEventListener('click', function(){ fn(); t6Input().focus(); });
+    pad.appendChild(b); return b;
+  };
+  mk('⇧ Shift', 't6Shift', function(){ t6state.shift = !t6state.shift; t6Check(); });
+  mk('м', null, function(){
+    const up = t6state.shift; t6state.shift = false;
+    t6Insert(up ? 'М' : 'м'); 
+  });
+  mk('⌫ Backspace', null, t6Backspace);
+  mk('◀', null, function(){ const i=t6Input(); const p=Math.max(0,i.selectionStart-1); i.setSelectionRange(p,p); });
+  mk('▶', null, function(){ const i=t6Input(); const p=Math.min(i.value.length,i.selectionEnd+1); i.setSelectionRange(p,p); });
+  panel.appendChild(pad);
+  panel.appendChild(el('div','instruction','💡 Подсказка: курсор стоит после лишней «р». Нажми Backspace. Затем поставь курсор после первой «м», сотри её, переключи раскладку (Alt + Shift) и напечатай Shift + м. Кнопки ниже — для планшета и телефона.'));
+  return panel;
+}
+
+function buildTask6(area){
+  t6ResetState();
+  const panel = t6BuildScreen();
+  area.appendChild(panel);
+  const inp = t6Input();
+  const pos = inp.value.indexOf('рр') + 2;
+  inp.focus();
+  inp.setSelectionRange(pos, pos);
+  t6Check();
+}
+
+/* =========================================================
+   ПЕРЕКЛЮЧЕНИЕ ЗАДАНИЙ
+   ========================================================= */
+function renderTask(n){
+  state.current = n;
+  state.selected = null;
+  drag = null;
+  clearSelection();
+  clearFeedback();
+
+  const area = document.getElementById('taskArea');
+  area.innerHTML = '';
+
+  if(n === 1) buildTask1(area);
+  else if(n === 2) buildTask2(area);
+  else if(n === 3) buildTask3(area);
+  else if(n === 4) buildTask4(area);
+  else if(n === 5) buildTask5(area);
+  else buildTask6(area);
+
+  refreshZones();
+  updateNav();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+/* =========================================================
+   ПРОВЕРКА
+   ========================================================= */
+function doCheck(){
+  const n = state.current;
+  let correct = 0;
+  let total = 0;
+
+  if(n === 1 || n === 2 || n === 4){
+    document.querySelectorAll('.dropzone[data-answer]').forEach(function(z){
+      total++;
+      z.classList.remove('correct','wrong');
+      const chip = z.querySelector('.chip');
+      if(chip && chip.dataset.key === z.dataset.answer){
+        z.classList.add('correct');
+        chip.classList.add('locked','correct');
+        chip.classList.remove('wrong');
+        correct++;
+      }else{
+        z.classList.add('wrong');
+        if(chip) chip.classList.add('wrong');
+      }
+    });
+  }
+  else if(n === 3){
+    document.querySelectorAll('.chip').forEach(function(chip){
+      total++;
+      chip.classList.remove('correct','wrong');
+      const zone = chip.closest('.dropzone');
+      if(zone && zone.dataset.col === chip.dataset.col){
+        chip.classList.add('correct','locked');
+        correct++;
+      }else{
+        chip.classList.add('wrong');
+      }
+    });
+  }
+  else if(n === 5){
+    document.querySelectorAll('.dropzone[data-pos]').forEach(function(z){
+      total++;
+      z.classList.remove('correct','wrong');
+      const chip = z.querySelector('.chip');
+      if(chip && Number(chip.dataset.order) === Number(z.dataset.pos)){
+        z.classList.add('correct');
+        chip.classList.add('locked','correct');
+        chip.classList.remove('wrong');
+        correct++;
+      }else{
+        z.classList.add('wrong');
+        if(chip) chip.classList.add('wrong');
+      }
+    });
+  }
+  else if(n === 6){
+    total = 3;
+    if(t6state){
+      if(t6state.step1) correct++;
+      if(t6state.step2) correct++;
+      if(t6state.step3) correct++;
+    }
+  }
+
+  if(total > 0 && correct === total){
+    state.completed.add(n);
+    updateScore();
+    updateNav();
+    setFeedback('ok', '🎉 Молодец! Задание выполнено! Правильно: ' + correct + ' из ' + total + '.');
+  }else{
+    setFeedback('err', '🤔 Пока правильно ' + correct + ' из ' + total + '. Красные пометки — там ошибка. Попробуй ещё раз!');
+  }
+}
+
+/* =========================================================
+   ЗАПУСК
+   ========================================================= */
+(function init(){
+  const nav = document.getElementById('taskNav');
+  for(let i = 1; i <= 6; i++){
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = String(i);
+    b.dataset.n = String(i);
+    b.addEventListener('click', function(){ renderTask(i); });
+    nav.appendChild(b);
+  }
+
+  document.getElementById('btnCheck').addEventListener('click', doCheck);
+  document.getElementById('btnReset').addEventListener('click', function(){ renderTask(state.current); });
+  document.getElementById('btnNext').addEventListener('click', function(){
+    if(state.current < 6){
+      renderTask(state.current + 1);
+    }else{
+      setFeedback('ok', '🏁 Это было последнее задание! Ты прошёл весь тренажёр! Отличная работа!');
+    }
+  });
+
+  updateScore();
+  renderTask(1);
+})();
+</script>
+</body>
+</html>
